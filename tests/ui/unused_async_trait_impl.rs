@@ -1,4 +1,5 @@
 #![warn(clippy::unused_async_trait_impl)]
+#![feature(never_type)]
 
 trait HasAsyncMethod {
     async fn do_something() -> u32;
@@ -104,6 +105,16 @@ mod macros {
         async fn do_something() -> Vec<u32> {
             //~^ unused_async_trait_impl
             vec![]
+        }
+    }
+}
+
+mod issue17162 {
+    // Should not lint when async trait impl is for `!` (never type)
+
+    impl crate::HasAsyncMethod for ! {
+        async fn do_something() -> u32 {
+            unreachable!()
         }
     }
 }

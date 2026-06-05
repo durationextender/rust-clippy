@@ -257,13 +257,21 @@ impl<'tcx> LateLintPass<'tcx> for UnusedAsync {
             visitor.visit_nested_body(body_id);
 
             if !visitor.found_await
-                && let Some(builtin_crate) = clippy_utils::std_or_core(cx)
-                && let Some(inner) = unpack_async_fn_body(cx, body)
-                // Find the tail expression contained in the async fn (if any),
-                // which will be wrapped in std::future::ready.
-                && let ExprKind::Block(block, _) = inner.kind
-                && let Some(tail_expr) = block.expr
+                    && let Some(builtin_crate) = clippy_utils::std_or_core(cx)
+                    && let Some(inner) = unpack_async_fn_body(cx, body)
+                    // Find the tail expression contained in the async fn (if any),
+                    // which will be wrapped in std::future::ready.
+                    && let ExprKind::Block(block, _) = inner.kind
+                    && let Some(tail_expr) = block.expr
             {
+                let parent = cx.tcx.hir_get_parent_item(impl_item.hir_id()).def_id;
+                let item = cx.tcx.hir_expect_item(parent);
+                let self_ty = cx.tcx.type_of(item.owner_id).instantiate_identity().skip_norm_wip();
+                //check if self.ty is never type ! if it is, then we don't want to lint because the function can
+                // never be called and thus doesn't need to be async
+                if self_ty.is_never() {
+                    return;
+                }
                 span_lint_and_then(
                     cx,
                     UNUSED_ASYNC_TRAIT_IMPL,
